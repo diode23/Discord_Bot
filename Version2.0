@@ -1,0 +1,63 @@
+import discord
+from discord.ext import commands
+import youtube_dl
+
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='!')
+        self.add_cog(MusicCog(self))
+        self.add_cog(GreetingCog(self))
+
+    async def on_ready(self):
+        print(f'{self.user.name} has connected to Discord!')
+
+class MusicCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command()
+    async def play(self, ctx, url: str):
+        server = ctx.message.guild
+        voice_channel = server.voice_client
+
+        if voice_channel and voice_channel.is_connected():
+            await voice_channel.move_to(server.voice_client.channel)
+        else:
+            voice_channel = await server.voice_client.connect(server.voice_client.channel)
+
+        player = await youtube_dl.YoutubeDL({}).extract_info(url, download=False)
+        voice_channel.play(discord.FFmpegPCMAudio(player['formats'][0]['url']))
+        await ctx.send(f'Playing {player["title"]}')
+
+    @commands.command()
+    async def pause(self, ctx):
+        voice_client = ctx.message.guild.voice_client
+        if voice_client and voice_client.is_playing():
+            voice_client.pause()
+            await ctx.send('Music paused.')
+        else:
+            await ctx.send('No music playing.')
+
+    @commands.command()
+    async def resume(self, ctx):
+        voice_client = ctx.message.guild.voice_client
+        if voice_client and voice_client.is_paused():
+            voice_client.resume()
+            await ctx.send('Music resumed.')
+        else:
+            await ctx.send('No music paused.')
+
+class GreetingCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command()
+    async def hello(self, ctx):
+        await ctx.send(f'Hello, {ctx.author.name}!')
+
+    @commands.command()
+    async def goodbye(self, ctx):
+        await ctx.send(f'Goodbye, {ctx.author.name}!')
+
+bot = MyBot()
+bot.run('TOKEN')
